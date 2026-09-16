@@ -1097,6 +1097,9 @@ const ENG_KEYS = Object.keys(RULES);
 const metrics = {scan:0, block:0, tps:0, wave:[], fp:0};
 // 상단 KPI 의 라이브 증분. 화면을 연 뒤 파이프라인이 실제로 처리한 건수만 쌓인다
 const live = {tot:0, pass:0, warn:0, crit:0};
+// 화면에 '오늘 접수'로 보이는 수는 전부 이 함수 하나를 거친다.
+// KPI 는 증분을 반영하는데 문구/지도 비율이 고정 TOTAL 을 쓰면 숫자가 서로 어긋난다.
+const liveTotal = () => TOTAL + live.tot;
 const PKT_MS = 3000;
 
 // 발주 라인 1건을 검사해 판정 카운터와 라이브 피드에 반영한다
@@ -1109,13 +1112,17 @@ function emitPacket(){
   setTimeout(() => {
     metrics.scan++;
     if (sev !== "n") metrics.block++;
+    // 검사한 건을 특정 대리점 주문으로 귀속시킨다.
+    // 총계만 올리고 대리점 주문을 안 올리면 지도 비율 합계가 100% 아래로 새어나간다.
+    const dealer = DEALERS[Math.floor(Math.random() * DEALERS.length)];
+    dealer.ord++;
     // 파이프라인을 빠져나온 건은 상단 KPI 에도 곧바로 반영한다.
     // 피드에서 통과/차단된 게 눈에 보이는데 숫자가 그대로면 따로 노는 화면이 된다.
     live.tot++;
     if      (sev === "c") live.crit++;
     else if (sev === "w") live.warn++;
     else                  live.pass++;
-    pushFeed(sev);
+    pushFeed(sev, dealer);
     drawKpis();
   }, PKT_MS);
 }
@@ -1135,10 +1142,11 @@ function stamp(){
   return now2(d.getHours()) + ":" + now2(d.getMinutes()) + ":" + now2(d.getSeconds());
 }
 
-function pushFeed(sev){
+function pushFeed(sev, dealer){
   const box = $("feed");
   if (!box) return;
-  const d  = DEALERS[Math.floor(Math.random() * DEALERS.length)];
+  // 카운터에 반영된 그 대리점을 그대로 쓴다. 여기서 따로 뽑으면 피드와 숫자가 어긋난다.
+  const d  = dealer || DEALERS[Math.floor(Math.random() * DEALERS.length)];
   const it = FEED_ITEMS[Math.floor(Math.random() * FEED_ITEMS.length)];
   const badge = sev === "c" ? "차단" : sev === "w" ? "주의" : "통과";
   const txt = sev === "n"
@@ -1177,7 +1185,7 @@ function dealerState(d){
   const risk = rows.reduce((a,r) => Math.max(a, r.b.risk), 0);
   return {lv:isCrit(risk) ? "crit" : "warn", risk:risk, bad:rows.length};
 }
-const shareOf = d => d.ord / TOTAL * 100;
+const shareOf = d => d.ord / liveTotal() * 100;
 
 let naverMap = null, naverMarkers = [], naverDead = false;
 
@@ -1409,7 +1417,7 @@ function drawKpis(){
   const critBase = L.filter(o => isCrit(o.risk)).length;
   const warnBase = L.length - critBase;
 
-  const tot   = TOTAL + live.tot;
+  const tot   = liveTotal();
   const critN = critBase + live.crit;
   const warnN = warnBase + live.warn;
   const passN = tot - critN - warnN;      // 합계가 항상 접수 건수와 맞도록 역산한다
@@ -1421,6 +1429,10 @@ function drawKpis(){
   $("kPassP").textContent = (passN/tot*100).toFixed(1) + "%";
   $("kWarnP").textContent = (warnN/tot*100).toFixed(1) + "%";
   $("kCritP").textContent = (critN/tot*100).toFixed(1) + "%";
+  // 감시 대기 패널이 떠 있으면 그 안의 검사 건수도 같이 올린다
+  const scanned = document.getElementById("railScanned");
+  if (scanned) scanned.textContent = tot.toLocaleString();
+
   setRing("rPass", passN/tot*100);
   setRing("rWarn", warnN/tot*100);
   setRing("rCrit", critN/tot*100);
@@ -1517,7 +1529,7 @@ function drawRail(){
       "<div class='void'><div class='o'><svg class='i' viewBox='0 0 24 24'>"
       + "<circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg></div>"
       + "<div class='t'>감시 대기 중</div>"
-      + "<div class='s'>AI가 " + TOTAL.toLocaleString() + "건을 검사해 <b>" + alive
+      + "<div class='s'>AI가 <span id='railScanned'>" + liveTotal().toLocaleString() + "</span>건을 검사해 <b>" + alive
       + "건</b>의 이상 라인을 잡아 두었습니다.<br>왼쪽 목록에서 행을 선택하면<br>근거와 조치 화면이 열립니다.</div></div>";
     return;
   }
@@ -1776,7 +1788,7 @@ function answer(q){
       + r.b.item + " · " + r.b.qty.toLocaleString() + "개<br>" + r.b.verdict;
   }
   const crit = alive.filter(r => isCrit(r.b.risk)).length;
-  return "오늘 <b>" + TOTAL + "건</b> 중 미처리 이상은 <b>" + alive.length + "건</b>"
+  return "오늘 <b>" + liveTotal().toLocaleString() + "건</b> 중 미처리 이상은 <b>" + alive.length + "건</b>"
     + "(위험 " + crit + " · 주의 " + (alive.length - crit) + ")입니다.<br>"
     + "권역·대리점·사유로도 물어보실 수 있습니다.";
 }
@@ -1835,7 +1847,7 @@ function boot(){
   $("chatOpen").addEventListener("click", () => {
     $("chat").classList.add("on");
     if (!$("chatLog").children.length)
-      chatPush("ai", "안녕하세요. 오늘 접수 <b>" + TOTAL + "건</b>을 실시간으로 보고 있습니다.<br>무엇을 확인해 드릴까요?");
+      chatPush("ai", "안녕하세요. 오늘 접수 <b>" + liveTotal().toLocaleString() + "건</b>을 실시간으로 보고 있습니다.<br>무엇을 확인해 드릴까요?");
     $("chatIn").focus();
   });
   $("chatClose").addEventListener("click", () => $("chat").classList.remove("on"));
