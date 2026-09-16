@@ -23,9 +23,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
-<!-- 네이버 지도 API. ncpKeyId 에 발급받은 Client ID 를 넣고,
-     NCP 콘솔의 Web 서비스 URL 에 배포 도메인을 등록해야 실지도가 뜬다.
-     키가 없거나 인증·로딩에 실패하면 SVG 지도로 자동 대체된다. -->
+<!-- 네이버 지도 API. ncpKeyId 값 를 발급받은 키로 바꾸면 실지도로 뜨고,
+     키가 없거나 로딩에 실패하면 기존 SVG 지도로 자동 대체된다. -->
 <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=trlcc82nlx"></script>
 
 <style>
@@ -93,13 +92,16 @@ body::before{
 @keyframes dash{to{stroke-dashoffset:-1000}}
 @keyframes bump{0%{transform:translateY(0)}35%{transform:translateY(-5px)}100%{transform:translateY(0)}}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes dropIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
 
 /* ══════════ 레이아웃 ══════════ */
+/* 화면 높이에 고정하고 nav·main·rail 이 각자 스크롤한다.
+   좌측 메뉴는 늘 전체 높이를 차지해서 하단의 AI 비서까지 바로 보인다 (v1 과 동일) */
 .app{position:relative;z-index:1;display:grid;
   grid-template-columns:var(--nav-w) minmax(0,1fr) var(--rail-w);
-  grid-template-rows:var(--head-h) 1fr;
+  grid-template-rows:var(--head-h) minmax(0,1fr);
   grid-template-areas:"top top top" "nav main rail";
-  min-height:100vh}
+  height:100dvh}
 
 /* ── 상단 바 ── */
 .top{grid-area:top;display:flex;align-items:center;gap:16px;padding:0 18px;
@@ -139,7 +141,8 @@ body::before{
 
 /* ══════════ 좌측 내비 ══════════ */
 .nav{grid-area:nav;padding:14px 10px;border-right:1px solid var(--line);
-  background:rgba(255,255,255,.62);display:flex;flex-direction:column;gap:2px}
+  background:rgba(255,255,255,.62);display:flex;flex-direction:column;gap:2px;
+  overflow-y:auto;min-height:0}
 .nav__g{font-size:9.5px;font-weight:800;letter-spacing:1.3px;color:var(--fg-4);padding:11px 11px 6px}
 .nav__a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r-s);cursor:pointer;
   background:none;border:0;color:var(--fg-3);font:inherit;font-size:12.5px;font-weight:600;
@@ -152,16 +155,7 @@ body::before{
   background:var(--crit);color:#fff;box-shadow:0 2px 7px rgba(240,56,76,.42)}
 .nav__sep{height:1px;background:var(--line);margin:9px 6px}
 
-.hb{margin-top:auto;padding:11px;border-radius:var(--r);background:#fff;border:1px solid var(--line);box-shadow:var(--sh)}
-.hb__t{font-size:9.5px;font-weight:800;letter-spacing:1px;color:var(--fg-4);margin-bottom:8px}
-.hb__r{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--fg-3);margin-bottom:6px}
-.hb__r:last-child{margin-bottom:0}
-.hb__r b{margin-left:auto;font-family:var(--f-mono);color:var(--ok-ink);font-weight:700}
-.hb__bar{flex:1;height:3px;border-radius:2px;background:var(--panel-3);overflow:hidden}
-.hb__bar span{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cy),var(--ok));
-  transition:width .6s cubic-bezier(.22,1,.36,1)}
-
-.assist{margin-top:10px;display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;cursor:pointer;
+.assist{margin-top:auto;display:flex;align-items:center;gap:9px;width:100%;padding:10px 11px;cursor:pointer;
   border-radius:var(--r);border:1px solid rgba(6,182,212,.30);color:var(--fg);font:inherit;text-align:left;
   background:linear-gradient(135deg,rgba(6,182,212,.13),rgba(6,182,212,.02));transition:.18s}
 .assist:hover{border-color:rgba(6,182,212,.6);box-shadow:0 4px 18px rgba(6,182,212,.20)}
@@ -171,7 +165,11 @@ body::before{
 .assist__s{font-size:10px;color:var(--fg-3)}
 
 /* ══════════ 메인 ══════════ */
-.main{grid-area:main;min-width:0;padding:16px;display:flex;flex-direction:column;gap:14px}
+.main{grid-area:main;min-width:0;min-height:0;overflow-y:auto;
+  padding:16px;display:flex;flex-direction:column;gap:14px}
+/* 높이가 100dvh 로 묶인 flex 컬럼이라 자식이 기본값(flex-shrink:1)대로 찌그러진다.
+   그러면 표 패널이 눌려 잘리고 스크롤할 내용도 사라지므로 축소를 막는다 */
+.main > *{flex-shrink:0}
 
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -357,7 +355,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
 /* ══════════ 우측 레일 ══════════ */
 .rail-r{grid-area:rail;min-width:0;border-left:1px solid var(--line);background:rgba(255,255,255,.66);
   padding:16px 14px;display:flex;flex-direction:column;gap:12px;
-  max-height:calc(100vh - var(--head-h));overflow:auto;position:sticky;top:var(--head-h)}
+  overflow-y:auto;min-height:0}
+.rail-r > *{flex-shrink:0}   /* 레일도 같은 이유로 축소를 막는다 */
 .rail-r::-webkit-scrollbar{width:6px}
 .rhead{display:flex;align-items:center;gap:8px}
 .rhead__t{font-size:11px;font-weight:800;letter-spacing:1.3px;color:var(--cy-ink);display:flex;align-items:center;gap:7px}
@@ -458,10 +457,13 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
 .confirm:disabled{background:var(--panel-3);color:var(--fg-4);cursor:not-allowed;box-shadow:none}
 
 /* ══════════ 토스트 ══════════ */
-.toasts{position:fixed;right:18px;bottom:18px;z-index:200;display:flex;flex-direction:column;gap:9px;pointer-events:none}
-.toast{position:relative;min-width:270px;max-width:334px;padding:11px 13px;border-radius:11px;pointer-events:auto;
+/* 경보는 상단 우측에서 내려온다. 넓은 화면에서는 우측 레일 위라 아무것도 가리지 않고,
+   레일이 아래로 내려가는 폭에서는 KPI 숫자를 덮지 않도록 --toast-top 으로 KPI 아래에 붙인다 */
+.toasts{position:fixed;top:var(--toast-top,calc(var(--head-h) + 10px));right:16px;
+  z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:9px;pointer-events:none}
+.toast{position:relative;min-width:290px;max-width:400px;padding:11px 13px;border-radius:11px;pointer-events:auto;
   background:#fff;border:1px solid rgba(240,56,76,.34);overflow:hidden;
-  box-shadow:0 12px 36px rgba(22,36,66,.18);display:flex;gap:10px;animation:slideL .35s both;cursor:pointer}
+  box-shadow:0 14px 40px rgba(22,36,66,.20);display:flex;gap:10px;animation:dropIn .35s both;cursor:pointer}
 .toast.w{border-color:rgba(245,158,11,.4)}
 .toast.ok{border-color:rgba(16,185,129,.4)}
 .toast__i{width:29px;height:29px;border-radius:8px;display:grid;place-items:center;flex:none;
@@ -509,16 +511,25 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
 
 /* ══════════ 반응형 ══════════ */
 @media (max-width:1480px){
+  /* 레일이 메인 아래로 내려오면 높이 고정이 오히려 화면을 잘라먹는다.
+     문서 스크롤로 돌리고 메뉴만 sticky 로 전체 높이를 유지한다 */
   .app{grid-template-columns:var(--nav-w) minmax(0,1fr);
-    grid-template-areas:"top top" "nav main" "nav rail"}
-  .rail-r{border-left:0;border-top:1px solid var(--line);position:static;max-height:none}
+    grid-template-areas:"top top" "nav main" "nav rail";
+    grid-template-rows:var(--head-h) auto 1fr;
+    height:auto;min-height:100dvh}
+  .nav{position:sticky;top:var(--head-h);height:calc(100dvh - var(--head-h));align-self:start}
+  :root{--toast-top:175px}   /* KPI 밴드(하단 165px) 아래 */
+  .main{overflow-y:visible}
+  .rail-r{border-left:0;border-top:1px solid var(--line);overflow-y:visible}
 }
 @media (max-width:1080px){
+  :root{--toast-top:279px}   /* KPI 2열로 접히면서 밴드가 269px 까지 내려온다 */
   .grid-mid{grid-template-columns:1fr}
   .kpis{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:820px){
-  .app{grid-template-columns:1fr;grid-template-areas:"top" "main" "rail"}
+  .app{grid-template-columns:1fr;grid-template-areas:"top" "main" "rail";
+    grid-template-rows:var(--head-h) auto 1fr;height:auto;min-height:100dvh}
   .nav{display:none}
   .brand{width:auto;min-width:0}
   .brand__s{display:none}
@@ -528,7 +539,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
   .tstat{flex:1;min-width:0;overflow:hidden}
   .who__n{display:none}                  /* 아바타만 남긴다 */
   .main{padding:12px}
-  .toasts,.chat{right:10px;bottom:10px}
+  .chat{right:10px;bottom:10px}
+  /* 좁은 화면에서는 좌우 여백만 확보한다 */
+  :root{--toast-top:291px}
+  .toasts{left:10px;right:10px}
+  .toast{min-width:0;width:100%}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -580,14 +595,6 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
     <div class="nav__sep"></div>
     <button class="nav__a"><svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>리포트</button>
     <button class="nav__a"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9 2 2 0 1 1-2.8 2.8 1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2 2 2 0 1 1-2.8-2.8A1.7 1.7 0 0 0 2.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9 2 2 0 1 1 2.8-2.8A1.7 1.7 0 0 0 9.5 4.1a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2 2 2 0 1 1 2.8 2.8 1.7 1.7 0 0 0 1.2 2.9 2 2 0 1 1 0 4 1.7 1.7 0 0 0-1 1z"/></svg>설정</button>
-
-    <!-- 엔진 상태 — 시스템이 살아 있다는 상시 신호 -->
-    <div class="hb">
-      <div class="hb__t">ENGINE HEALTH</div>
-      <div class="hb__r"><span>모델</span><span class="hb__bar"><span id="hb1" style="width:0%"></span></span><b id="hb1v">0%</b></div>
-      <div class="hb__r"><span>DB 연결</span><span class="hb__bar"><span id="hb2" style="width:0%"></span></span><b id="hb2v">0%</b></div>
-      <div class="hb__r"><span>큐 여유</span><span class="hb__bar"><span id="hb3" style="width:0%"></span></span><b id="hb3v">0%</b></div>
-    </div>
 
     <button class="assist" id="chatOpen">
       <span class="ic"><svg class="i i--sm" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/></svg></span>
@@ -801,7 +808,7 @@ const RULES = {
   DATE_INVERT: {nm:"일자 역전",      sev:"warn"}
 };
 
-/* 조치 사유 코드 — 조치이력 테이블에 코드로 적재된다
+/* 조치 사유 코드 — 조치이력 테이블의 사유코드
    자유 텍스트만 받으면 집계가 안 돼서 오탐률 산출·임계값 튜닝에 못 쓴다. */
 const REASONS = {
   OK:  {nm:"정상 처리", cls:"done", list:[
@@ -819,7 +826,7 @@ const REASONS = {
 const MEMO_REQUIRED = {AI_WRONG:15};
 const memoMin = c => MEMO_REQUIRED[c] || 0;
 
-/* 권역 — 영업담당자의 부서 기준으로 분류한다 */
+/* 권역 — 영업담당자 부서 기준 CASE */
 const ZONES = ["수도권","강원제주권","충청권","호남권","경상권","기타"];
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -993,7 +1000,7 @@ const COAST = [
 const JEJU = [[33.56,126.30],[33.52,126.80],[33.33,126.95],[33.20,126.62],[33.30,126.20]];
 
 /* ══════════════════════════════════════════════════════════════════════
-   4. 상태 — 목록·조치의 단위는 '이상 품목 건'(주문 상세 1행)
+   4. 상태 — 목록·조치의 단위는 '이상 품목 건'(주문 상세)
       발주 1건에 이상이 2건이면 하나는 정상 처리, 하나는 보류가 될 수 있어야 하므로
       평평하게 펴서 다룬다. 키는 발주번호#순번.
    ══════════════════════════════════════════════════════════════════════ */
@@ -1040,6 +1047,8 @@ function visible(){
 const ENG_KEYS = Object.keys(RULES);
 
 const metrics = {scan:0, block:0, tps:0, wave:[], fp:0};
+// 상단 KPI 의 라이브 증분. 화면을 연 뒤 파이프라인이 실제로 처리한 건수만 쌓인다
+const live = {tot:0, pass:0, warn:0, crit:0};
 const PKT_MS = 3000;
 
 // 발주 라인 1건을 검사해 판정 카운터와 라이브 피드에 반영한다
@@ -1052,7 +1061,14 @@ function emitPacket(){
   setTimeout(() => {
     metrics.scan++;
     if (sev !== "n") metrics.block++;
+    // 파이프라인을 빠져나온 건은 상단 KPI 에도 곧바로 반영한다.
+    // 피드에서 통과/차단된 게 눈에 보이는데 숫자가 그대로면 따로 노는 화면이 된다.
+    live.tot++;
+    if      (sev === "c") live.crit++;
+    else if (sev === "w") live.warn++;
+    else                  live.pass++;
     pushFeed(sev);
+    drawKpis();
   }, PKT_MS);
 }
 
@@ -1124,7 +1140,7 @@ function fallbackToSvg(){
   $("radar").classList.remove("is-map");
   drawRadarSvg();
 }
-window.navermap_authFailure = fallbackToSvg;   // 네이버가 호출하는 정확한 전역명
+window.navermap_authFailure = fallbackToSvg;
 
 const HAS_NAVER = () => !naverDead && !!(window.naver && naver.maps && naver.maps.Map);
 
@@ -1140,11 +1156,10 @@ function initNaverMap(){
   });
   $("radar").classList.add("is-map");
 
-  // 고정 center/zoom 에서는 제주·속초가 화면 밖으로 밀린다.
-  // '전국' 레이더이므로 대리점 좌표 전체를 감싸도록 맞춘다 (최초 1회만).
-  const bounds = new naver.maps.LatLngBounds();
-  DEALERS.forEach(d => bounds.extend(new naver.maps.LatLng(d.lat, d.lng)));
-  naverMap.fitBounds(bounds, {top:22, right:22, bottom:22, left:22});
+  // 고정 center/zoom 에서는 제주/속초가 화면 밖으로 밀린다. 전체를 감싸도록 맞춘다.
+  const _b = new naver.maps.LatLngBounds();
+  DEALERS.forEach(d => _b.extend(new naver.maps.LatLng(d.lat, d.lng)));
+  naverMap.fitBounds(_b, {top:22, right:22, bottom:22, left:22});
 
   // 키 인증에 실패해도 Map 객체와 init 이벤트는 그대로 나온다. 다만 실패하면 API 가
   // naver.maps 를 걷어내므로, 잠시 뒤 그게 남아 있는지로 인증 성공 여부를 판단한다.
@@ -1338,22 +1353,27 @@ function setKpi(id, v, suffix){
 }
 
 function drawKpis(){
-  // 단위를 발주번호로 맞춘다. 목록은 수주순번 단위라 섞으면 합계가 접수 건수를 넘는다
+  // 단위를 발주번호로 맞춘다. 목록은 수주순번 단위라 섞으면 합계가 접수 건수를 넘는다.
+  // 기준선(base)은 목록에 남아 있는 이상 발주, 증분(live)은 파이프라인이 방금 처리한 건이다.
   const L = ORDERS.filter(o => !orderDone(o));
-  const critN = L.filter(o => isCrit(o.risk)).length;
-  const warnN = L.length - critN;
-  const passN = TOTAL - L.length;
+  const critBase = L.filter(o => isCrit(o.risk)).length;
+  const warnBase = L.length - critBase;
 
-  setKpi("kTot",  TOTAL, "건");
+  const tot   = TOTAL + live.tot;
+  const critN = critBase + live.crit;
+  const warnN = warnBase + live.warn;
+  const passN = tot - critN - warnN;      // 합계가 항상 접수 건수와 맞도록 역산한다
+
+  setKpi("kTot",  tot,   "건");
   setKpi("kPass", passN, "건");
   setKpi("kWarn", warnN, "건");
   setKpi("kCrit", critN, "건");
-  $("kPassP").textContent = (passN/TOTAL*100).toFixed(1) + "%";
-  $("kWarnP").textContent = (warnN/TOTAL*100).toFixed(1) + "%";
-  $("kCritP").textContent = (critN/TOTAL*100).toFixed(1) + "%";
-  setRing("rPass", passN/TOTAL*100);
-  setRing("rWarn", warnN/TOTAL*100);
-  setRing("rCrit", critN/TOTAL*100);
+  $("kPassP").textContent = (passN/tot*100).toFixed(1) + "%";
+  $("kWarnP").textContent = (warnN/tot*100).toFixed(1) + "%";
+  $("kCritP").textContent = (critN/tot*100).toFixed(1) + "%";
+  setRing("rPass", passN/tot*100);
+  setRing("rWarn", warnN/tot*100);
+  setRing("rCrit", critN/tot*100);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1408,7 +1428,7 @@ function drawRows(){
    11. 우측 레일 — 선택 건 상세 + 조치
    ══════════════════════════════════════════════════════════════════════ */
 // 이상 건의 최근 7개월 주문 추이. 평균·최대·금회 수량에서 고정 시드로 만든다
-// (실제 운영에서는 주문 이력 집계로 대체)
+// (실제 운영에서는 주문 상세 집계로 대체)
 function seedOf(s){ let h = 0; for (let i = 0; i < s.length; i++) h = (h*31 + s.charCodeAt(i)) >>> 0; return h; }
 function histOf(r){
   if (r.b._hist) return r.b._hist;
@@ -1601,8 +1621,9 @@ function toast(kind, title, sub){
     + (T_ICO[kind] || T_ICO.crit) + "</svg></div>"
     + "<div><div class='toast__t'>" + title + "</div><div class='toast__s'>" + sub + "</div></div>";
   el.addEventListener("click", () => el.remove());
-  box.appendChild(el);
-  while (box.children.length > 3) box.removeChild(box.firstChild);
+  // 상단에 쌓이므로 최신이 맨 위에 와야 읽는 순서가 맞다
+  box.insertBefore(el, box.firstChild);
+  while (box.children.length > 3) box.removeChild(box.lastChild);
   setTimeout(() => el.remove(), 5200);
 }
 
@@ -1757,13 +1778,8 @@ function boot(){
     drawWave();
   }, 1000);
 
-  // 엔진 헬스 — 값이 미세하게 흔들려야 라이브로 읽힌다
+  // 오탐 억제율 — 값이 미세하게 흔들려야 라이브로 읽힌다
   setInterval(() => {
-    [[1,97,3],[2,99,1],[3,82,14]].forEach(h => {
-      const v = Math.round(h[1] - Math.random() * h[2]);
-      $("hb" + h[0]).style.width = v + "%";
-      $("hb" + h[0] + "v").textContent = v + "%";
-    });
     $("wFp").textContent = (2.1 + Math.random() * .9).toFixed(1) + "%";
   }, 2400);
 
