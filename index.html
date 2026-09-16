@@ -93,6 +93,8 @@ body::before{
 @keyframes bump{0%{transform:translateY(0)}35%{transform:translateY(-5px)}100%{transform:translateY(0)}}
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
 @keyframes dropIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+/* 좌측 하단 버튼에서 솟아오르듯 열린다 */
+@keyframes popUp{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 
 /* ══════════ 레이아웃 ══════════ */
 /* 화면 높이에 고정하고 nav·main·rail 이 각자 스크롤한다.
@@ -107,7 +109,9 @@ body::before{
 .top{grid-area:top;display:flex;align-items:center;gap:16px;padding:0 18px;
   background:rgba(255,255,255,.90);border-bottom:1px solid var(--line);
   backdrop-filter:blur(14px);box-shadow:0 1px 16px rgba(22,36,66,.05);
-  position:sticky;top:0;z-index:60}
+  /* 알림 패널이 이 안에 들어 있다. 헤더가 스태킹 컨텍스트를 만들므로
+     패널이 토스트(z-index:200) 위로 올라오려면 헤더 자체가 더 높아야 한다 */
+  position:sticky;top:0;z-index:210}
 .brand{display:flex;align-items:center;gap:10px;width:calc(var(--nav-w) - 18px);flex:none}
 .brand__m{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
   font-weight:900;font-size:12.5px;letter-spacing:.5px;color:#fff;
@@ -131,6 +135,8 @@ body::before{
 .bell{position:relative;width:33px;height:33px;border-radius:9px;display:grid;place-items:center;cursor:pointer;
   background:var(--panel-2);border:1px solid var(--line);color:var(--fg-2)}
 .bell:hover{color:var(--fg);border-color:var(--line-2)}
+/* display:grid 가 브라우저 기본 [hidden]{display:none} 을 이기므로 명시적으로 눌러 준다 */
+.bell b[hidden]{display:none}
 .bell b{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;
   background:var(--crit);color:#fff;font-size:10px;font-weight:800;display:grid;place-items:center;
   font-family:var(--f-mono);box-shadow:0 2px 8px rgba(240,56,76,.5)}
@@ -270,14 +276,14 @@ body::before{
   font-size:11px;animation:slideL .35s both}
 .fr__t{font-family:var(--f-mono);font-size:10px;color:var(--fg-4);flex:none}
 .fr__i{width:6px;height:6px;border-radius:50%;flex:none;background:var(--ok)}
-.fr.w .fr__i{background:var(--warn)}
-.fr.c .fr__i{background:var(--crit);box-shadow:0 0 0 3px rgba(240,56,76,.14)}
+.fr.warn .fr__i{background:var(--warn)}
+.fr.crit .fr__i{background:var(--crit);box-shadow:0 0 0 3px rgba(240,56,76,.14)}
 .fr__x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-2)}
-.fr.c .fr__x{color:var(--fg)}
+.fr.crit .fr__x{color:var(--fg)}
 .fr__b{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;flex:none;letter-spacing:.3px;
   background:var(--ok-s);color:var(--ok-ink)}
-.fr.w .fr__b{background:var(--warn-s);color:var(--warn-ink)}
-.fr.c .fr__b{background:var(--crit-s);color:var(--crit-ink)}
+.fr.warn .fr__b{background:var(--warn-s);color:var(--warn-ink)}
+.fr.crit .fr__b{background:var(--crit-s);color:var(--crit-ink)}
 
 /* ── 처리량 파형 ── */
 .wave__m{display:flex;gap:18px;margin-bottom:8px;flex-wrap:wrap}
@@ -324,7 +330,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
 .tbl tbody tr:hover{background:rgba(6,182,212,.07)}
 .tbl tbody tr.sel{background:rgba(6,182,212,.12);box-shadow:inset 2.5px 0 0 var(--cy)}
 .tbl tbody tr.done{opacity:.46}
-.c{text-align:center}.r{text-align:right;font-family:var(--f-mono)}
+/* 표 전용 정렬 유틸. 전역으로 두면 심각도 클래스(.c 등)와 충돌하므로 표 안으로 한정한다 */
+.tbl .c{text-align:center}.tbl .r{text-align:right;font-family:var(--f-mono)}
 .ghost{opacity:.36}
 .empty{padding:34px;text-align:center;color:var(--fg-4);font-size:12px}
 
@@ -470,14 +477,42 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
   background:var(--crit-s);color:var(--crit-ink)}
 .toast.w .toast__i{background:var(--warn-s);color:var(--warn-ink)}
 .toast.ok .toast__i{background:var(--ok-s);color:var(--ok-ink)}
+/* ── 알림 내역 패널 ── */
+.bellwrap{position:relative}
+.notif{position:absolute;top:calc(100% + 9px);right:0;width:344px;max-height:420px;overflow-y:auto;
+  background:#fff;border:1px solid var(--line-2);border-radius:12px;z-index:400;
+  box-shadow:0 18px 50px rgba(22,36,66,.22);animation:dropIn .22s both}
+.notif__h{display:flex;align-items:center;gap:8px;padding:11px 13px;position:sticky;top:0;z-index:1;
+  background:#fff;border-bottom:1px solid var(--line)}
+.notif__t{font-size:12px;font-weight:800}
+.notif__n{font-size:10.5px;color:var(--fg-4);font-family:var(--f-mono)}
+.notif__clear{margin-left:auto;font:inherit;font-size:10.5px;color:var(--fg-3);
+  background:none;border:0;cursor:pointer;padding:3px 6px;border-radius:5px}
+.notif__clear:hover{background:var(--panel-2);color:var(--fg)}
+.notif__r{display:flex;gap:9px;padding:10px 13px;cursor:pointer;
+  border-bottom:1px solid rgba(22,36,66,.05);transition:background .12s}
+.notif__r:hover{background:var(--panel-2)}
+.notif__r.unread{background:rgba(6,182,212,.05)}
+.notif__i{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:none;
+  background:var(--crit-s);color:var(--crit-ink)}
+.notif__r.w .notif__i{background:var(--warn-s);color:var(--warn-ink)}
+.notif__r.ok .notif__i{background:var(--ok-s);color:var(--ok-ink)}
+.notif__x{min-width:0;flex:1}
+.notif__ti{font-size:11.5px;font-weight:700;margin-bottom:2px}
+.notif__s{font-size:10.5px;color:var(--fg-3);line-height:1.55}
+.notif__at{font-size:9.5px;color:var(--fg-4);font-family:var(--f-mono);margin-top:3px}
+.notif__empty{padding:34px 16px;text-align:center;color:var(--fg-4);font-size:11.5px;line-height:1.7}
+
 .toast__t{font-size:11.5px;font-weight:800;margin-bottom:2px}
 .toast__s{font-size:10.5px;color:var(--fg-3);line-height:1.6}
 
 /* ══════════ 챗 ══════════ */
-.chat{position:fixed;right:18px;bottom:18px;width:352px;max-width:calc(100vw - 30px);z-index:300;
+/* 좌측 메뉴의 AI 비서 버튼 바로 위에서 열린다.
+   버튼은 메뉴 하단에 고정(높이 61px + 아래 여백 14px)이라 bottom 은 85px 로 고정된다 */
+.chat{position:fixed;left:10px;bottom:85px;width:352px;max-width:calc(100vw - 20px);z-index:300;
   border-radius:15px;overflow:hidden;display:none;flex-direction:column;background:#fff;
   border:1px solid var(--line-2);box-shadow:0 26px 70px rgba(22,36,66,.24)}
-.chat.on{display:flex;animation:riseIn .3s both}
+.chat.on{display:flex;animation:popUp .26s cubic-bezier(.22,1,.36,1) both}
 .chat__h{display:flex;align-items:center;gap:9px;padding:12px 13px;border-bottom:1px solid var(--line);
   background:linear-gradient(135deg,rgba(6,182,212,.11),transparent)}
 .chat__h .ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
@@ -539,7 +574,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
   .tstat{flex:1;min-width:0;overflow:hidden}
   .who__n{display:none}                  /* 아바타만 남긴다 */
   .main{padding:12px}
-  .chat{right:10px;bottom:10px}
+  /* 이 폭에서는 메뉴가 숨겨져 기준이 될 버튼이 없으므로 화면 하단에 붙인다 */
+  .chat{left:10px;right:10px;bottom:10px;width:auto;max-width:none}
   /* 좁은 화면에서는 좌우 여백만 확보한다 */
   :root{--toast-top:291px}
   .toasts{left:10px;right:10px}
@@ -575,10 +611,21 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
 
     <div class="top__sp"></div>
     <div class="top__r">
-      <button class="bell" id="bell" aria-label="알림">
-        <svg class="i" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-        <b id="bellN">0</b>
-      </button>
+      <div class="bellwrap">
+        <button class="bell" id="bell" aria-label="알림 내역" aria-expanded="false">
+          <svg class="i" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          <b id="bellN" hidden>0</b>
+        </button>
+        <!-- 지나간 토스트 알림을 모아 두는 패널 -->
+        <div class="notif" id="notif" hidden>
+          <div class="notif__h">
+            <span class="notif__t">알림 내역</span>
+            <span class="notif__n" id="notifN">0건</span>
+            <button class="notif__clear" id="notifClear">전체 지우기</button>
+          </div>
+          <div id="notifList"></div>
+        </div>
+      </div>
       <div class="who"><span class="who__a" aria-hidden="true">최</span><span class="who__n">최혜연<span style="color:var(--fg-4)">님</span></span></div>
     </div>
   </header>
@@ -770,10 +817,11 @@ table.tbl{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixe
     </div>
     <div id="rail"></div>
   </aside>
-</div>
 
-<!-- 토스트 -->
-<div class="toasts" id="toasts"></div>
+  <!-- 토스트. .app 안에 두어야 헤더(z-index:210)의 알림 패널이 토스트 위로 올라온다.
+       .app 이 z-index:1 로 스태킹 컨텍스트를 만들기 때문이다 -->
+  <div class="toasts" id="toasts"></div>
+</div>
 
 <!-- ══════════ AI 비서 ══════════ -->
 <div class="chat" id="chat" role="dialog" aria-label="AI 비서">
@@ -1098,7 +1146,9 @@ function pushFeed(sev){
     : esc(d.nm) + " · " + esc(it) + " — " + RULES[ENG_KEYS[Math.floor(Math.random()*ENG_KEYS.length)]].nm;
 
   const row = document.createElement("div");
-  row.className = "fr" + (sev === "n" ? "" : " " + sev);
+  // sev 코드(c/w)를 그대로 클래스에 쓰면 표 유틸리티 .c{text-align:center} 와 충돌해
+  // 위험 행만 글자가 가운데로 밀린다. 전용 이름을 쓴다.
+  row.className = "fr" + (sev === "c" ? " crit" : sev === "w" ? " warn" : "");
   row.innerHTML = "<span class='fr__t'>" + stamp() + "</span><span class='fr__i'></span>"
                 + "<span class='fr__x'>" + txt + "</span><span class='fr__b'>" + badge + "</span>";
   box.insertBefore(row, box.firstChild);
@@ -1598,7 +1648,7 @@ function drawRail(){
     const label = REASONS[p.type].list.find(c => c[0] === p.code)[1];
     state.done[r.key] = {type:p.type, code:p.code, label:label, memo:p.memo, at:stamp()};
     state.pending = null;
-    toast("ok", "조치 확정", esc(o.buyer) + " 순번 " + b.seq + " — " + REASONS[p.type].nm + " / " + label);
+    toast("ok", "조치 확정", esc(o.buyer) + " 순번 " + b.seq + " — " + REASONS[p.type].nm + " / " + label, r.key);
     render();
   });
   const undo = $("undo");
@@ -1613,7 +1663,19 @@ const T_ICO = {
   w:"<circle cx='12' cy='12' r='9'/><path d='M12 8v4.5'/><path d='M12 16h.01'/>",
   ok:"<path d='M20 6 9 17l-5-5'/>"
 };
-function toast(kind, title, sub){
+/* 토스트는 5초면 사라지므로, 자리를 비운 사이 지나간 알림도 볼 수 있도록
+   같은 내용을 벨 아이콘의 내역 패널에 함께 쌓아 둔다.
+   key 를 주면 내역에서 눌렀을 때 해당 이상 건으로 이동한다. */
+const NOTIFS = [];
+let unread = 0;
+
+function toast(kind, title, sub, key){
+  NOTIFS.unshift({kind:kind, title:title, sub:sub, key:key || null, at:stamp()});
+  while (NOTIFS.length > 50) NOTIFS.pop();      // 무한정 쌓이지 않게 상한을 둔다
+  unread++;
+  paintBell();
+  if (!$("notif").hidden) drawNotifs();          // 열어 둔 채로 새 알림이 오면 즉시 반영
+
   const box = $("toasts");
   const el = document.createElement("div");
   el.className = "toast" + (kind === "crit" ? "" : " " + kind);
@@ -1625,6 +1687,52 @@ function toast(kind, title, sub){
   box.insertBefore(el, box.firstChild);
   while (box.children.length > 3) box.removeChild(box.lastChild);
   setTimeout(() => el.remove(), 5200);
+}
+
+// 안 읽은 알림 수. 0 이면 배지를 숨긴다
+function paintBell(){
+  const n = $("bellN");
+  n.textContent = unread > 99 ? "99+" : unread;
+  n.hidden = unread === 0;
+}
+
+function drawNotifs(){
+  const box = $("notifList");
+  $("notifN").textContent = NOTIFS.length + "건";
+  if (!NOTIFS.length){
+    box.innerHTML = "<div class='notif__empty'>아직 도착한 알림이 없습니다.<br>"
+                  + "AI가 이상 발주를 감지하면 여기에 쌓입니다.</div>";
+    return;
+  }
+  box.innerHTML = NOTIFS.map((v, i) =>
+      "<div class='notif__r " + (v.kind === "crit" ? "" : v.kind)
+    + (i < unread ? " unread" : "") + "' data-i='" + i + "'>"
+    + "<div class='notif__i'><svg class='i i--sm' viewBox='0 0 24 24'>"
+    + (T_ICO[v.kind] || T_ICO.crit) + "</svg></div>"
+    + "<div class='notif__x'><div class='notif__ti'>" + v.title + "</div>"
+    + "<div class='notif__s'>" + v.sub + "</div>"
+    + "<div class='notif__at'>" + v.at + "</div></div></div>").join("");
+
+  // 알림을 누르면 해당 이상 건을 목록·레일에서 연다
+  box.querySelectorAll(".notif__r").forEach(el => el.addEventListener("click", () => {
+    const v = NOTIFS[+el.dataset.i];
+    if (!v.key || !ROWS.some(r => r.key === v.key)) return;
+    state.selKey = v.key; state.pending = null;
+    closeNotifs();
+    render();
+  }));
+}
+
+function openNotifs(){
+  $("notif").hidden = false;
+  $("bell").setAttribute("aria-expanded", "true");
+  drawNotifs();
+  unread = 0;                 // 펼쳐 본 시점에 읽음 처리
+  paintBell();
+}
+function closeNotifs(){
+  $("notif").hidden = true;
+  $("bell").setAttribute("aria-expanded", "false");
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -1698,7 +1806,6 @@ function render(){
   $("tC").textContent = crit;
   $("tW").textContent = alive.length - crit;
   $("navN").textContent = alive.length;
-  $("bellN").textContent = crit;
   drawKpis();
   drawRows();
   drawRail();
@@ -1741,13 +1848,22 @@ function boot(){
     $("chatIn").value = ""; $("chatSend").disabled = true;
   });
 
-  // 알림 벨 — 가장 위험한 미처리 건으로 이동
-  $("bell").addEventListener("click", () => {
-    const r = aliveRows()[0];
-    if (!r) return;
-    state.selKey = r.key; state.pending = null;
-    render();
+  // 알림 벨 — 지나간 알림 내역을 펼친다
+  $("bell").addEventListener("click", e => {
+    e.stopPropagation();
+    if ($("notif").hidden) openNotifs(); else closeNotifs();
   });
+  $("notifClear").addEventListener("click", e => {
+    e.stopPropagation();
+    NOTIFS.length = 0; unread = 0;
+    paintBell(); drawNotifs();
+  });
+  // 패널 안쪽 클릭은 닫지 않고, 바깥을 누르면 닫는다
+  $("notif").addEventListener("click", e => e.stopPropagation());
+  document.addEventListener("click", () => { if (!$("notif").hidden) closeNotifs(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeNotifs(); });
+
+  paintBell();
 
   render();
   drawWave();
@@ -1800,7 +1916,7 @@ function boot(){
       const crit = isCrit(r.b.risk);
       toast(crit ? "crit" : "w",
             (crit ? "위험 발주 감지 " : "주의 발주 감지 ") + r.b.risk + "%",
-            esc(r.o.buyer) + " 순번 " + r.b.seq + " — " + RULES[r.b.find[0].r].nm);
+            esc(r.o.buyer) + " 순번 " + r.b.seq + " — " + RULES[r.b.find[0].r].nm, r.key);
       pingDealer(r.o.buyer, crit ? "c" : "w");
       $("bell").classList.remove("ring"); void $("bell").offsetWidth; $("bell").classList.add("ring");
     }
